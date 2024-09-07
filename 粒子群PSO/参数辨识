@@ -1,0 +1,158 @@
+# -*- coding:utf-8 -*-
+import numpy as np
+import matplotlib.pyplot as plt
+import math
+import matplotlib as mpl
+import pandas as pd
+mpl.rcParams['font.sans-serif'] = ['SimHei']  # 指定默认字体
+mpl.rcParams['axes.unicode_minus'] = False  # 解决保存图像是负号'-'显示为方块的问
+
+data = pd.read_excel(r"C:\Users\isbow\Desktop\TQ1在轨数据\在轨实验数据.xlsx", header=0)
+
+f = data.iloc[:,0]; ax0 = data.iloc[:,1]; ax1 = data.iloc[:,2]
+ay0 = data.iloc[:,3]; ay1 = data.iloc[:,4]
+number = len(f)
+
+def getlearningrate():
+    # 分别是粒子的个体和社会的学习因子，也称为加速常数，即c1、c2
+    lr = (1.3000,1.7000)
+    return lr
+
+def getmaxgen():
+    # 最大迭代次数
+    maxgen = 200
+    return maxgen
+
+def getweight():
+    # 惯性权重
+    weightmax = 0.90
+    weightmin = 0.10
+    weight = np.zeros(200)
+    for i in range(200):
+        weight[i] = weightmax - ((weightmax-weightmin)/200) * i
+    return weight
+
+def getsizepop():
+    # 种群规模
+    sizepop = 200
+    return sizepop
+
+def getrangepop():
+    # 粒子的位置的范围限制,x、y方向的限制相同
+    # rangepop = (-2*math.pi , 2*math.pi)
+    #rangepop = (-2,2)
+    rangepopmin = (1e-7,1e-13,1e-7) #分别对应主惯量、惯量积、质心偏移量
+    rangepopmax = (1e-4,1e-11,1e-5)
+    return rangepopmin,rangepopmax
+def getrangespeed():
+    rangespeed = (-1e-12,1e-12)
+    return rangespeed
+
+lr = getlearningrate(); maxgen = getmaxgen(); w = getweight(); sizepop = getsizepop()
+rangepopmin,rangepopmax = getrangepop(); rangespeed = getrangespeed()
+def initpopv(sizepop):
+    # 初始化粒子并计算适应度值
+    pop = np.zeros((sizepop,3))
+    v = np.zeros((sizepop,3))
+
+    # 随机初始化各个粒子的起始位置与起始速度
+    for i in range(sizepop):
+        pop[i,0:] = [rangepopmin[0]+((rangepopmax[0]-rangepopmin[0])*np.random.rand()),
+                   rangepopmin[0]+((rangepopmax[0]-rangepopmin[0])*np.random.rand()),
+                   rangepopmin[0]+((rangepopmax[0]-rangepopmin[0])*np.random.rand())]
+
+        v[i] = [rangespeed[0]+((rangespeed[1]-rangespeed[0])*np.random.rand()),
+                rangespeed[0]+((rangespeed[1]-rangespeed[0])*np.random.rand()),
+                 rangespeed[0]+((rangespeed[1]-rangespeed[0])*np.random.rand())]
+
+    return pop,v
+
+pop,v = initpopv(sizepop)
+
+def func(x):
+    y = 0
+    for i in range(number):
+        left0 = ax0[i]
+        right00 = (((2*(math.pi)*f[i])**2+(18.75*(x[0]/4.95e-5)))**2)*((x[1]**2)/(1+(0.01/f[i])))
+        right01 = 3/8*((x[0]*2.5)**2)*((x[2]**2)/(1+(0.01/f[i])))
+        right02 = (2.2e-13/(2*(math.pi)*f[i]))**2
+        right0 = (right00+right01+right02)**0.5
+        left1 = ax1[i]
+        right10 = (((2*(math.pi)*f[i])**2+(637.5*(x[0]/4.95e-5)))**2)*((x[1]**2)/(1+(0.01/f[i])))
+        right11 = 3 / 8 * ((x[0] * 25) ** 2) * ((x[2] ** 2) / (1 + (0.01 / f[i])))
+        right12 = (2.2e-13 / (2 * (math.pi) * f[i])) ** 2
+        right1 = (right10 + right11 + right12) ** 0.5
+
+        formula = (left0 - right0)
+        J = math.sqrt(formula**2)
+        y = y + 0.5 * J*J
+    return y
+def initfit(sizepop):
+    fitness = np.zeros(sizepop)
+    for i in range(sizepop):
+        fitness[i] = func(pop[i])
+    return fitness
+fitness = initfit(sizepop)
+def getinitbest(fitness,pop):
+    gbestpop, gbestfitness = pop[fitness.argmin()].copy(), fitness.min()
+    pbestpop, pbestfitness = pop.copy(), fitness.copy()
+    return gbestpop,gbestfitness,pbestpop,pbestfitness
+gbestpop,gbestfitness,pbestpop,pbestfitness = getinitbest(fitness,pop)
+result = np.zeros(maxgen)
+ax = np.zeros(maxgen); bx = np.zeros(maxgen); cx = np.zeros(maxgen)
+for i in range(maxgen):
+        for j in range(sizepop):
+            v[j] = w[j] * v[j] + lr[0] * np.random.rand() * (pbestpop[j] - pop[j]) + lr[1] * np.random.rand() * (gbestpop - pop[j])
+        v[v < rangespeed[0]] = rangespeed[0]
+        v[v > rangespeed[1]] = rangespeed[1]
+        for j in range(sizepop):
+            pop[j] = v[j] + pop[j]
+        pop[:,0][pop[:,0] < rangepopmin[0]] = rangepopmin[0]
+        pop[:,0][pop[:,0] > rangepopmax[0]] = rangepopmax[0]
+        pop[:,1][pop[:,1] < rangepopmin[1]] = rangepopmin[1]
+        pop[:,1][pop[:,1] > rangepopmax[1]] = rangepopmax[1]
+        pop[:,2][pop[:,2] < rangepopmin[2]] = rangepopmin[2]
+        pop[:,2][pop[:,2] > rangepopmax[2]] = rangepopmax[2]
+    # 适应度更新
+        for j in range(sizepop):
+            fitness[j] = func(pop[j])
+        for j in range(sizepop):
+            if fitness[j] < pbestfitness[j]:
+                pbestfitness[j] = fitness[j]
+                pbestpop[j] = pop[j].copy()
+        if pbestfitness.min() < gbestfitness:
+            gbestfitness = pbestfitness.min()
+            gbestpop = pop[pbestfitness.argmin()].copy()
+
+        result[i] = gbestfitness
+        ax[i] = gbestpop[0]
+        bx[i] = gbestpop[1]
+        cx[i] = gbestpop[2]
+print(ax)
+print(bx)
+print(cx)
+
+# 绘制结果
+fig1 = plt.figure(num=1, figsize=(8, 6), dpi=100)       # 图例 默认不显示 需与plt.legend()一起使用
+plt.plot(result,"r-", linewidth=2.0, label="Fitness Value")
+plt.ylabel("Fitness Value",family='Arial',fontsize=14)
+plt.xlabel("Iterations",family='Arial',fontsize=14)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
+plt.legend(loc='upper right',fontsize=14)
+plt.grid()
+plt.savefig("适应度值.svg", format='svg')
+plt.show()
+
+fig2 = plt.figure(num=1, figsize=(8, 6), dpi=100)       # 图例 默认不显示 需与plt.legend()一起使用
+plt.plot(ax,"mediumslateblue",linestyle='--', linewidth=2.0, label="Identification Value of ax")
+plt.plot(bx,"purple", linestyle='--',linewidth=2.0, label="Identification Value of bx")
+plt.plot(cx,"deeppink",linestyle='--', linewidth=2.0, label="Identification Value of cx")
+plt.title('Theoretical Model Parameters of X Direction ',color='k',family='Arial',fontsize=14)
+plt.ylabel("Identification Value",family='Arial',fontsize=14)
+plt.xlabel("Iteration",family='Arial',fontsize=14)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
+plt.legend(loc='best',fontsize=14)
+plt.grid()
+plt.show()
