@@ -7,7 +7,7 @@ import pandas as pd
 mpl.rcParams['font.sans-serif'] = ['SimHei']  # 指定默认字体
 mpl.rcParams['axes.unicode_minus'] = False  # 解决保存图像是负号'-'显示为方块的问
 
-data = pd.read_excel(r"C:\Users\isbow\Desktop\TQ1在轨数据\在轨实验数据.xlsx", header=0)
+data = pd.read_excel(r"实验数据.xlsx", header=0)
 
 f = data.iloc[:,0]; ax0 = data.iloc[:,1]; ax1 = data.iloc[:,2]
 ay0 = data.iloc[:,3]; ay1 = data.iloc[:,4]
